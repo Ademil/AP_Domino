@@ -13,6 +13,7 @@
   const K_SETTINGS = PREFIX + 'settings';
   const K_GAME = PREFIX + 'game';
   const K_CHALLENGES = PREFIX + 'challenges';
+  const K_NAMES = PREFIX + 'names';
 
   const DEFAULT_STATS = {
     matchesPlayed: 0,
@@ -147,6 +148,20 @@
     clearGame() {
       return this.remove(K_GAME);
     },
+        /* ---------- Nomes personalizados dos jogadores ---------- */
+        loadNames() {
+          const list = this.get(K_NAMES, []);
+          return Array.isArray(list) ? list : [];
+        },
+        saveNames(names) {
+          const safe = Array.isArray(names) ? names.slice(0, 4).map(function (n) {
+            return (typeof n === 'string' ? n : '').slice(0, 14);
+          }) : [];
+          return this.set(K_NAMES, safe);
+        },
+        clearNames() {
+          return this.remove(K_NAMES);
+        },
 
     /* ---------- Desafios ---------- */
     loadChallengeProgress() {

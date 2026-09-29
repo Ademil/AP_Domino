@@ -1,7 +1,7 @@
 /* ===================================================================
    AP DOMINÓ — app.js
-   Controlador da interface. Suporta 1, 2 ou 3 humanos no mesmo aparelho
-   (hot-seat) com nomes personalizados.
+   Controlador da interface. Suporta 1 a 4 humanos no mesmo aparelho
+   (hot-seat) com nomes personalizados persistentes.
    =================================================================== */
 (function (global) {
   'use strict';
@@ -11,6 +11,7 @@
 
   /* ==================== CORES DOS BADGES ==================== */
   const PLAYER_COLORS = ['#16a34a', '#0891b2', '#d97706', '#7c3aed'];
+  const MAX_HUMANS = 4;
 
   /* ==================== DESAFIOS ==================== */
   const CHALLENGES = [
@@ -64,7 +65,7 @@
     // Hot-seat
     humanIndices: [0],
     viewingPlayer: 0,
-    humanNames: [],   // mantém os nomes digitados entre partidas
+    humanNames: ['', '', '', ''],
 
     /* ---------------- Inicialização ---------------- */
     init() {
@@ -72,6 +73,12 @@
       this.settings = AP.StorageManager.loadSettings();
       this.stats = AP.StorageManager.loadStats();
       this.challengeProgress = AP.StorageManager.loadChallengeProgress();
+
+      // Carrega nomes persistidos (até 4)
+      const saved = AP.StorageManager.loadNames();
+      for (let i = 0; i < MAX_HUMANS; i++) {
+        this.humanNames[i] = (saved && saved[i]) ? String(saved[i]) : '';
+      }
 
       this.audio = new AP.AudioManager();
       this.audio.setEnabled(this.settings.sound);
@@ -159,8 +166,16 @@
 
     /* ---------------- Helpers hot-seat ---------------- */
     isHuman(idx) { return this.humanIndices.indexOf(idx) !== -1; },
-    humanLabel() {
-      return this.humanIndices.length > 1 ? 'VOCÊS' : 'VOCÊ';
+    humanLabel() { return this.humanIndices.length > 1 ? 'VOCÊS' : 'VOCÊ'; },
+
+    /* ---------------- Persistência dos nomes ---------------- */
+    persistNames() {
+      // Garante que existam pelo menos MAX_HUMANS slots
+      const arr = [];
+      for (let i = 0; i < MAX_HUMANS; i++) {
+        arr.push((this.humanNames[i] || '').slice(0, 14));
+      }
+      AP.StorageManager.saveNames(arr);
     },
 
     /* ---------------- Inputs de nomes ---------------- */
@@ -176,14 +191,11 @@
       }
       group.hidden = false;
 
-      // Preserva valores digitados anteriormente
+      // Captura valores atuais antes de redesenhar
       const previous = [];
-      Array.prototype.forEach.call(container.querySelectorAll('input'), function (inp) {
-        previous.push(inp.value);
+      Array.prototype.forEach.call(container.querySelectorAll('input'), function (inp, i) {
+        previous[i] = inp.value;
       });
-      if (previous.length === 0 && this.humanNames.length > 0) {
-        for (let i = 0; i < this.humanNames.length; i++) previous[i] = this.humanNames[i];
-      }
 
       container.innerHTML = '';
 
@@ -202,10 +214,22 @@
         input.autocomplete = 'off';
         input.spellcheck = false;
         input.placeholder = 'JOGADOR ' + (i + 1);
-        input.value = previous[i] || this.humanNames[i] || '';
+
+        // Preferência: valor atual do DOM → valor em memória
+        const memorized = (this.humanNames[i] || '').slice(0, 14);
+        input.value = (previous[i] !== undefined && previous[i] !== '')
+          ? previous[i]
+          : memorized;
+
         input.setAttribute('aria-label', 'Nome do jogador ' + (i + 1));
+
         input.addEventListener('input', () => {
-          this.humanNames[i] = input.value;
+          this.humanNames[i] = input.value.slice(0, 14);
+          this.persistNames();
+        });
+        input.addEventListener('change', () => {
+          this.humanNames[i] = input.value.slice(0, 14);
+          this.persistNames();
         });
 
         row.appendChild(badge);
@@ -215,16 +239,10 @@
     },
 
     readHumanNames(humanCount) {
-      const container = this.ui.namesInputs;
       const names = [];
-      if (container) {
-        const inputs = container.querySelectorAll('input');
-        for (let i = 0; i < humanCount; i++) {
-          const raw = inputs[i] ? inputs[i].value.trim() : '';
-          names.push(raw || ('JOGADOR ' + (i + 1)));
-        }
-      } else {
-        for (let i = 0; i < humanCount; i++) names.push('JOGADOR ' + (i + 1));
+      for (let i = 0; i < humanCount; i++) {
+        const raw = (this.humanNames[i] || '').trim();
+        names.push(raw || ('JOGADOR ' + (i + 1)));
       }
       return names;
     },
@@ -278,6 +296,7 @@
         if (self.engine.state && self.engine.state.phase === 'playing') {
           AP.StorageManager.saveGame(self.engine);
         }
+        self.persistNames();
       });
 
       setInterval(function () {
@@ -314,6 +333,7 @@
         case 'undo':            this.humanUndo(); break;
         case 'pass-device-ready': this.handlePassDeviceReady(); break;
         case 'reset-stats':     this.confirm('Zerar estatísticas?', 'Todas as estatísticas serão apagadas.', () => this.resetStats()); break;
+        case 'reset-names':     this.confirm('Apagar nomes?', 'Os nomes personalizados serão removidos.', () => { this.humanNames = ['','','','']; AP.StorageManager.clearNames(); this.renderNameInputs(1); }); break;
         case 'play-again':      this.ui.overlayMatch.hidden = true; this.restartMatch(); break;
         case 'start-challenge': this.startChallenge(this._pendingChallengeId); break;
         default: break;
@@ -326,7 +346,6 @@
         c.classList.toggle('active', c.dataset.value === value);
       });
 
-      // Ajusta humanos conforme número de jogadores
       if (kind === 'players') {
         const n = parseInt(value, 10);
         const humansRow = this.ui.setupHumans;
@@ -350,23 +369,28 @@
       }
 
       if (kind === 'mode') {
-        // Em duplas, forçamos 4 jogadores
         if (value === 'duo') {
           this.selectChip('setupPlayers', '4');
           const playersRow = document.getElementById('setupPlayers');
           Array.prototype.forEach.call(playersRow.querySelectorAll('.chip'), function (c) {
             c.disabled = true;
           });
-          // Em duplas com 4 jogadores aceitamos 1 ou 2 humanos
+          // Em duplas, aceitamos 1 a 4 humanos
           const humansRow = this.ui.setupHumans;
           Array.prototype.forEach.call(humansRow.querySelectorAll('.chip'), function (c) {
-            const hv = parseInt(c.dataset.value, 10);
-            c.disabled = (hv > 2);
+            c.disabled = false;
           });
         } else {
           const playersRow = document.getElementById('setupPlayers');
           Array.prototype.forEach.call(playersRow.querySelectorAll('.chip'), function (c) {
             c.disabled = false;
+          });
+          const humansRow = this.ui.setupHumans;
+          const nPlayers = parseInt(this.readChip('setupPlayers') || '2', 10);
+          Array.prototype.forEach.call(humansRow.querySelectorAll('.chip'), function (c) {
+            const hv = parseInt(c.dataset.value, 10);
+            c.disabled = (hv > nPlayers);
+            if (c.disabled) c.classList.remove('active');
           });
         }
       }
@@ -420,7 +444,7 @@
       const humansRow = this.ui.setupHumans;
       Array.prototype.forEach.call(humansRow.querySelectorAll('.chip'), function (c) {
         const hv = parseInt(c.dataset.value, 10);
-        c.disabled = (hv > playerCount) || (mode === 'duo' && hv > 2);
+        c.disabled = (hv > playerCount);
       });
 
       this.renderNameInputs(1);
@@ -448,8 +472,9 @@
       const difficulty = this.readChip('setupDifficulty') || 'medium';
       const target = parseInt(this.readChip('setupTarget') || '100', 10);
 
-      const safeHumans = Math.max(1, Math.min(humans, players));
+      const safeHumans = Math.max(1, Math.min(humans, players, MAX_HUMANS));
       const names = this.readHumanNames(safeHumans);
+      this.persistNames();
 
       this.settings.lastDifficulty = difficulty;
       this.settings.lastTarget = target;
@@ -476,9 +501,6 @@
       this.selectedTileId = null;
       this.engine.newMatch(config);
 
-      // Guarda nomes para uso futuro (restart/render dos inputs)
-      this.humanNames = (config.humanNames || []).slice();
-
       this.humanIndices = this.engine.state.players
         .filter(function (p) { return !p.isAI; })
         .map(function (p) { return p.index; });
@@ -499,8 +521,7 @@
     restartMatch() {
       if (!this.engine.state) { this.goToMenu(); return; }
       const cfg = Object.assign({}, this.engine.config);
-      // Preserva nomes
-      cfg.humanNames = this.humanNames.slice();
+      cfg.humanNames = this.readHumanNames(cfg.humanCount || 1);
       this.startMatch(cfg);
     },
 
@@ -565,7 +586,6 @@
         && currentIsHuman
         && (this.viewingPlayer !== s.currentPlayer);
 
-      // Caso 1: precisa passar o aparelho antes de mostrar a mão
       if (needsHandover) {
         this.ui.overlayPassDevice.hidden = false;
         this.ui.passDeviceText.innerHTML =
@@ -583,7 +603,6 @@
       }
       this.ui.overlayPassDevice.hidden = true;
 
-      // Caso 2: render normal
       this.renderer.renderBoard();
 
       const viewIdx = this.viewingPlayer;
@@ -1007,34 +1026,34 @@
       const board = this.engine.getScoreboard();
       const hasTeams = board.some(function (b) { return b.team !== null; });
 
-      // Determina "score do humano principal" para os registros
+      // Score para estatísticas (usa o time/score do humano principal)
       const primary = board.find(function (b) { return b.index === PRIMARY_HUMAN; }) || board[0];
       const humanScore = hasTeams ? primary.teamScore : primary.score;
 
-      // Determina vitória: qualquer humano (ou sua dupla) no topo
-      let humanWon;
+      // ---- Determinação de vitória ----
+      const self = this;
+      let humanWon = false;
+
       if (hasTeams) {
-        const best = Math.max.apply(null, board.map(function (b) { return b.teamScore; }));
-        const anyHumanTeamAtTop = board.some(function (b) {
-          return b.teamScore === best &&
-                 b.teamScore >= s.targetScore &&
-                 s.players[HUMAN_TEAM_CHECK(b)] && s.players[HUMAN_TEAM_CHECK(b)].team === b.team;
+        // Agrupa scores por time
+        const teamTotals = {};
+        board.forEach(function (b) { teamTotals[b.team] = b.teamScore; });
+        const bestTeam = Math.max.apply(null, Object.keys(teamTotals).map(k => teamTotals[k]));
+        Object.keys(teamTotals).forEach(function (k) {
+          const teamNum = parseInt(k, 10);
+          const total = teamTotals[k];
+          if (total === bestTeam && total >= s.targetScore) {
+            const hasHuman = self.humanIndices.some(function (h) {
+              return s.players[h].team === teamNum;
+            });
+            if (hasHuman) humanWon = true;
+          }
         });
-        // fallback: cheque direto
-        humanWon = (humanScore >= best && humanScore >= s.targetScore);
-        if (!humanWon) {
-          // Se alguma dupla com humano venceu
-          humanWon = board.some(function (b) {
-            return b.teamScore >= best && b.teamScore >= s.targetScore &&
-              this.humanIndices.some(function (h) { return s.players[h].team === b.team; });
-          }.bind(this));
-        }
-        void anyHumanTeamAtTop;
       } else {
-        const best = Math.max.apply(null, board.map(function (b) { return b.score; }));
+        const bestScore = Math.max.apply(null, board.map(function (b) { return b.score; }));
         humanWon = board.some(function (b) {
-          return this.isHuman(b.index) && b.score >= best && b.score >= s.targetScore;
-        }.bind(this));
+          return self.isHuman(b.index) && b.score >= bestScore && b.score >= s.targetScore;
+        });
       }
 
       if (humanWon) AP.StorageManager.registerMatchWon(humanScore);
@@ -1065,7 +1084,6 @@
         : 'A IA ATINGIU A PONTUAÇÃO ALVO PRIMEIRO.';
       body.appendChild(sub);
 
-      const self = this;
       const shown = new Set();
       board.forEach(function (b) {
         if (hasTeams) {
@@ -1325,9 +1343,6 @@
       this._toastTimer = setTimeout(function () { el.hidden = true; }, 2400);
     }
   };
-
-  /* Helper para evitar ReferenceError no cálculo de dupla */
-  function HUMAN_TEAM_CHECK(b) { return b.index; }
 
   AP.App = App;
 

@@ -2,23 +2,21 @@
    AP DOMINÓ — renderer.js
    Desenho da mesa, das peças, dos marcadores e da mão do jogador.
 
-   Layout "cobra com turnos":
-   - Fileiras horizontais em serpentina (vai → volta → vai...).
-   - Ao chegar à última coluna, uma peça é desenhada VERTICAL (o "turno").
-   - Carretas (0-0, 1-1 … 6-6) são sempre verticais.
-   - Na volta (linha ímpar), as peças são ESPELHADAS para manter o
-     encaixe visual (a metade que estava à direita vai para a esquerda).
-
-   Cada peça da mesa recebe uma ETIQUETA com o nome do jogador que a
-   colocou, colorida por jogador.
+   Regras:
+   - Peças horizontais: 64 × 32 · verticais (só carretas): 32 × 64
+   - Sem "turnos" arbitrários
+   - Linhas pares (0, 2, 4...) vão da esquerda para a direita
+   - Linhas ímpares (1, 3, 5...) voltam da direita para a esquerda
+     e têm as metades ESPELHADAS para manter o encaixe visual
+   - Sem etiquetas de jogador sobre as peças
    =================================================================== */
 (function (global) {
   'use strict';
 
   const AP = (global.AP = global.AP || {});
 
-  /** Mapa de posições dos pontos num grid 3x3. */
-  const PIP_MAP = {
+  /* Mapa de pontos para peças VERTICAIS (2 colunas × 3 linhas). */
+  const PIP_MAP_V = {
     0: [],
     1: [4],
     2: [0, 8],
@@ -28,27 +26,38 @@
     6: [0, 2, 3, 5, 6, 8]
   };
 
+  /* Mapa de pontos para peças HORIZONTAIS (3 colunas × 2 linhas).
+     Só o 6 muda — os outros são simétricos. */
+  const PIP_MAP_H = {
+    0: [],
+    1: [4],
+    2: [0, 8],
+    3: [0, 4, 8],
+    4: [0, 2, 6, 8],
+    5: [0, 2, 4, 6, 8],
+    6: [0, 1, 2, 6, 7, 8]
+  };
+
   const NATURAL = {
     TILE_W: 64,   // largura da peça horizontal (== .tile-h)
-    TILE_H: 32,   // altura da peça horizontal
-    V_W: 46,      // largura da peça vertical (== .tile-v)
-    V_H: 92,      // altura da peça vertical
-    GAP: 5,
-    PAD: 26
+    TILE_H: 32,   // altura  da peça horizontal
+    V_W: 32,      // largura da peça vertical = altura da horizontal
+    V_H: 64,      // altura  da peça vertical = largura da horizontal
+    GAP: 1,       // espaço entre peças
+    PAD: 26       // margem interna (reserva para a moldura)
   };
 
-  /** Nomes curtos exibidos nas etiquetas das peças na mesa. */
-  const OWNER_LABELS = {
-    0: 'VOCÊ',
-    1: 'IA 1',
-    2: 'IA 2',
-    3: 'IA 3'
-  };
-
-  function buildPips(value) {
+  /**
+   * Constrói o bloco de 9 células (3x3) com os pontos correspondentes.
+   * @param {number} value - valor da metade (0 a 6)
+   * @param {string} orientation - 'h' ou 'v'
+   */
+  function buildPips(value, orientation) {
     const wrap = document.createElement('div');
     wrap.className = 'pips';
-    const positions = PIP_MAP[value] || [];
+    const map = (orientation === 'h') ? PIP_MAP_H : PIP_MAP_V;
+    const positions = map[value] || [];
+
     for (let i = 0; i < 9; i++) {
       const cell = document.createElement('span');
       cell.className = 'pip-cell';
@@ -63,26 +72,28 @@
   }
 
   /**
-   * Cria a "cara" da peça (metades + divisor) dentro de um wrapper
-   * que ocupa todo o espaço do elemento .tile.
+   * Constrói a "cara" da peça (metade A + divisor + metade B) dentro de
+   * um wrapper `.tile-face` que ocupa toda a área do elemento `.tile`.
+   * @param {Array<number>} values - [valorEsquerda, valorDireita]
+   * @param {string} orientation - 'h' ou 'v'
    */
-  function buildTileFace(values) {
+  function buildTileFace(values, orientation) {
     const face = document.createElement('div');
     face.className = 'tile-face';
 
     const halfA = document.createElement('div');
     halfA.className = 'tile-half';
-    halfA.appendChild(buildPips(values[0]));
+    halfA.appendChild(buildPips(values[0], orientation));
 
-    const div = document.createElement('div');
-    div.className = 'tile-divider';
+    const divider = document.createElement('div');
+    divider.className = 'tile-divider';
 
     const halfB = document.createElement('div');
     halfB.className = 'tile-half';
-    halfB.appendChild(buildPips(values[1]));
+    halfB.appendChild(buildPips(values[1], orientation));
 
     face.appendChild(halfA);
-    face.appendChild(div);
+    face.appendChild(divider);
     face.appendChild(halfB);
     return face;
   }
@@ -92,7 +103,7 @@
       this.engine = engine;
       this.els = elements;
 
-      this.boardTiles = new Map();   // tileId -> elemento
+      this.boardTiles = new Map();   // tileId → elemento
       this.endMarkers = { left: null, right: null, first: null };
       this.selectedTileId = null;
       this.validSides = [];
@@ -144,7 +155,7 @@
         if (self.selectedTileId === tile.id) el.classList.add('selected');
         if (isMyTurn && !playableIds.has(tile.id)) el.classList.add('unplayable');
 
-        el.appendChild(buildTileFace([tile.left, tile.right]));
+        el.appendChild(buildTileFace([tile.left, tile.right], 'v'));
 
         el.addEventListener('click', function () {
           if (self.onTileClick) self.onTileClick(tile.id);
@@ -160,6 +171,17 @@
       });
     }
 
+    /** Substitui a mão por uma mensagem (usado no overlay "passe o aparelho"). */
+    clearHand(message) {
+      const container = this.els.playerHand;
+      if (!container) return;
+      container.innerHTML = '';
+      const empty = document.createElement('div');
+      empty.className = 'hand-empty';
+      empty.textContent = message || 'Aguardando...';
+      container.appendChild(empty);
+    }
+
     markTileInvalid(tileId) {
       const el = this.els.playerHand.querySelector('[data-tile-id="' + tileId + '"]');
       if (!el) return;
@@ -169,7 +191,7 @@
       setTimeout(function () { el.classList.remove('shake'); }, 380);
     }
 
-    /* ==================== LAYOUT DA MESA (serpentina) ==================== */
+    /* ==================== LAYOUT DA MESA ==================== */
     computeLayout(tileCount, availW, availH, chain) {
       const TILE_W = NATURAL.TILE_W;
       const TILE_H = NATURAL.TILE_H;
@@ -181,75 +203,104 @@
       const usableW = Math.max(180, availW - PAD * 2);
       const usableH = Math.max(120, availH - PAD * 2);
 
-      let slotsPerRow = Math.floor((usableW + GAP) / (TILE_W + GAP));
-      slotsPerRow = Math.max(4, slotsPerRow);
-      slotsPerRow = Math.min(slotsPerRow, Math.max(1, tileCount));
-
-      const rows = Math.max(1, Math.ceil(tileCount / slotsPerRow));
-
-      // Uma linha tem "turno" (peça vertical no final) se está cheia E
-      // não é a última linha.
-      const rowHasTurn = [];
-      for (let r = 0; r < rows; r++) {
-        const start = r * slotsPerRow;
-        const end = Math.min(start + slotsPerRow, tileCount);
-        const isFull = (end - start === slotsPerRow);
-        const isLastRow = (r === rows - 1);
-        rowHasTurn.push(isFull && !isLastRow);
+      if (tileCount === 0) {
+        return {
+          positions: [],
+          totalW: TILE_W,
+          totalH: TILE_H,
+          scale: 1,
+          offsetX: (availW - TILE_W) / 2,
+          offsetY: (availH - TILE_H) / 2,
+          TILE_W: TILE_W,
+          TILE_H: TILE_H,
+          perRow: 1,
+          rows: 0
+        };
       }
 
-      // Altura de cada linha (turno → precisa de V_H)
-      const rowHeights = rowHasTurn.map(function (hasTurn) {
-        return hasTurn ? V_H : TILE_H;
+      // 1) Orientação: SOMENTE carretas são verticais
+      const isVertical = [];
+      const widths = [];
+      for (let i = 0; i < tileCount; i++) {
+        const c = chain[i];
+        const isDouble = !!(c && c.left === c.right);
+        isVertical.push(isDouble);
+        widths.push(isDouble ? V_W : TILE_W);
+      }
+
+      // 2) Quebra de linhas (greedy, respeitando largura real)
+      const rowsIdx = [];
+      let currentRow = [];
+      let currentRowWidth = 0;
+      for (let i = 0; i < tileCount; i++) {
+        const w = widths[i];
+        const candidate = (currentRow.length === 0) ? w : (currentRowWidth + GAP + w);
+        if (currentRow.length > 0 && candidate > usableW) {
+          rowsIdx.push(currentRow);
+          currentRow = [i];
+          currentRowWidth = w;
+        } else {
+          currentRow.push(i);
+          currentRowWidth = candidate;
+        }
+      }
+      if (currentRow.length > 0) rowsIdx.push(currentRow);
+
+      // 3) Dimensões reais de cada linha
+      const rowWidths = rowsIdx.map(function (arr) {
+        let w = 0;
+        for (let k = 0; k < arr.length; k++) {
+          w += widths[arr[k]];
+          if (k < arr.length - 1) w += GAP;
+        }
+        return w;
       });
 
-      const totalH = rowHeights.reduce(function (a, b) { return a + b; }, 0) + (rows - 1) * GAP;
-      const totalW = slotsPerRow * (TILE_W + GAP) - GAP;
+      const rowHeights = rowsIdx.map(function (arr) {
+        let h = TILE_H;
+        for (let k = 0; k < arr.length; k++) {
+          if (isVertical[arr[k]]) h = Math.max(h, V_H);
+        }
+        return h;
+      });
+
+      const totalW = Math.max.apply(null, rowWidths);
+      const totalH = rowHeights.reduce(function (a, b) { return a + b; }, 0) +
+                     (rowsIdx.length - 1) * GAP;
 
       const scale = Math.min(1, usableW / totalW, usableH / totalH);
       const offsetX = (availW - totalW * scale) / 2;
       const offsetY = (availH - totalH * scale) / 2;
 
+      // 4) Posições finais (serpentina)
       const positions = [];
-      let y = 0;
+      let yCursor = 0;
 
-      for (let r = 0; r < rows; r++) {
+      for (let r = 0; r < rowsIdx.length; r++) {
         const rh = rowHeights[r];
+        const rw = rowWidths[r];
         const goingRight = (r % 2 === 0);
-        // ⬇️ Na volta (linha ímpar), as peças precisam ser espelhadas
-        const flipped = !goingRight;
+        const arr = rowsIdx[r];
 
-        const start = r * slotsPerRow;
-        const end = Math.min(start + slotsPerRow, tileCount);
+        let xCursor = 0;
+        for (let k = 0; k < arr.length; k++) {
+          const idx = arr[k];
+          const w = widths[idx];
+          const v = isVertical[idx];
+          const tileH = v ? V_H : TILE_H;
+          const yPos = yCursor + (rh - tileH) / 2;
+          const xPos = goingRight ? xCursor : (rw - xCursor - w);
 
-        for (let i = start; i < end; i++) {
-          const slot = i - start;
-          const col = goingRight ? slot : (slotsPerRow - 1 - slot);
-          const x = col * (TILE_W + GAP);
+          positions[idx] = {
+            x: xPos,
+            y: yPos,
+            isVertical: v,
+            flipped: !goingRight   // ← espelha as metades nas linhas de retorno
+          };
 
-          const isTurn = rowHasTurn[r] && (slot === slotsPerRow - 1);
-          const isDouble = !!(chain[i] && chain[i].left === chain[i].right);
-          const isVertical = isTurn || isDouble;
-
-          let xo, yo;
-          if (isVertical) {
-            xo = x + (TILE_W - V_W) / 2;
-            yo = y + (rh - V_H) / 2;
-          } else {
-            xo = x;
-            yo = y + (rh - TILE_H) / 2;
-          }
-
-          positions.push({
-            x: xo,
-            y: yo,
-            isVertical: isVertical,
-            isTurn: isTurn,
-            flipped: flipped
-          });
+          xCursor += w + GAP;
         }
-
-        y += rh + GAP;
+        yCursor += rh + GAP;
       }
 
       return {
@@ -261,8 +312,8 @@
         offsetY: offsetY,
         TILE_W: TILE_W,
         TILE_H: TILE_H,
-        perRow: slotsPerRow,
-        rows: rows
+        perRow: rowsIdx.length > 0 ? rowsIdx[0].length : 1,
+        rows: rowsIdx.length
       };
     }
 
@@ -306,7 +357,7 @@
 
         let el = self.boardTiles.get(entry.tileId);
 
-        // Se a peça existir mas com orientação errada, recria.
+        // Recria se a orientação mudou
         if (el) {
           const hasV = el.classList.contains('tile-v');
           if (hasV !== isVertical) {
@@ -316,40 +367,34 @@
           }
         }
 
-        // Cria elemento se necessário
         if (!el) {
           el = document.createElement('div');
           el.className = 'tile ' + (isVertical ? 'tile-v' : 'tile-h') + ' tile-enter';
           el.dataset.tileId = entry.tileId;
+          el.setAttribute('aria-label',
+            'Peça na mesa ' + entry.left + ' por ' + entry.right +
+            (entry.left === entry.right ? ' (carreta)' : ''));
           inner.appendChild(el);
           self.boardTiles.set(entry.tileId, el);
           setTimeout(function () { el.classList.remove('tile-enter'); }, 300);
         }
 
-        // ⬇️ Atualiza a "cara" se os valores ou a orientação mudaram
+        // Reconstrói a "cara" se valores, orientação ou flip mudaram
         const faceKey = entry.left + '|' + entry.right + '|' +
-                        (flipped ? 'F' : 'N');
+                        (flipped ? 'F' : 'N') + '|' +
+                        (isVertical ? 'V' : 'H');
         if (el.dataset.faceKey !== faceKey) {
           const oldFace = el.querySelector('.tile-face');
           if (oldFace) oldFace.remove();
 
-          // Aplica o espelhamento: na volta, troca as metades
           const faceValues = flipped
             ? [entry.right, entry.left]
             : [entry.left, entry.right];
 
-          el.appendChild(buildTileFace(faceValues));
+          el.appendChild(buildTileFace(faceValues, isVertical ? 'v' : 'h'));
           el.dataset.faceKey = faceKey;
-
-          const ownerName = OWNER_LABELS[entry.owner] || ('J' + entry.owner);
-          const roleHint = entry.left === entry.right ? ' (carreta)'
-                          : (pos.isTurn ? ' (turno)' : '');
-          el.setAttribute('aria-label',
-            'Peça ' + entry.left + ' por ' + entry.right +
-            ' jogada por ' + ownerName + roleHint);
         }
 
-       
         el.style.transform = 'translate(' + pos.x + 'px,' + pos.y + 'px)';
       });
 
@@ -380,8 +425,8 @@
       if (this.validSides.length === 0) return;
 
       const TILE_W = layout.TILE_W;
-      const TILE_H = layout.TILE_H;
 
+      // Primeira peça: marcador único
       if (s.chain.length === 0) {
         if (this.validSides.indexOf('first') === -1) return;
         const marker = document.createElement('div');
@@ -391,7 +436,9 @@
         marker.setAttribute('role', 'button');
         marker.setAttribute('tabindex', '0');
         marker.setAttribute('aria-label', 'Colocar peça na mesa');
-        marker.addEventListener('click', function () { if (self.onSideClick) self.onSideClick('first'); });
+        marker.addEventListener('click', function () {
+          if (self.onSideClick) self.onSideClick('first');
+        });
         marker.addEventListener('keydown', function (ev) {
           if (ev.key === 'Enter' || ev.key === ' ') {
             ev.preventDefault();
@@ -403,27 +450,22 @@
         return;
       }
 
-      // O marcador "esquerdo" fica ANTES da primeira peça; o "direito",
-      // DEPOIS da última peça — sempre seguindo a direção visual da linha.
-      const firstIdx = 0;
-      const lastIdx = layout.positions.length - 1;
-      const firstPos = layout.positions[firstIdx];
-      const lastPos = layout.positions[lastIdx];
+      const firstPos = layout.positions[0];
+      const lastPos = layout.positions[layout.positions.length - 1];
       if (!firstPos || !lastPos) return;
 
       if (this.validSides.indexOf('left') !== -1) {
         const m = document.createElement('div');
         m.className = 'end-marker';
         m.textContent = '◀';
-        // Se a última linha (a que contém a primeira peça) está indo
-        // para a esquerda (ímpar), o marcador "esquerdo" fica à direita.
-        const isReturn = (lastIdx >= 0) && (Math.floor(lastIdx / layout.perRow) % 2 === 1);
-        const dx = isReturn ? (TILE_W + 8) : (-TILE_W - 8);
-        m.style.transform = 'translate(' + (firstPos.x + dx) + 'px,' + firstPos.y + 'px)';
+        // Sempre à esquerda visual da primeira peça da cadeia
+        m.style.transform = 'translate(' + (firstPos.x - TILE_W - 8) + 'px,' + firstPos.y + 'px)';
         m.setAttribute('role', 'button');
         m.setAttribute('tabindex', '0');
         m.setAttribute('aria-label', 'Jogar na extremidade esquerda');
-        m.addEventListener('click', function () { if (self.onSideClick) self.onSideClick('left'); });
+        m.addEventListener('click', function () {
+          if (self.onSideClick) self.onSideClick('left');
+        });
         m.addEventListener('keydown', function (ev) {
           if (ev.key === 'Enter' || ev.key === ' ') {
             ev.preventDefault();
@@ -438,14 +480,13 @@
         const m = document.createElement('div');
         m.className = 'end-marker';
         m.textContent = '▶';
-        const lastRow = Math.floor(lastIdx / layout.perRow);
-        const isReturn = (lastRow % 2 === 1);
-        const dx = isReturn ? (-TILE_W - 8) : (TILE_W + 8);
-        m.style.transform = 'translate(' + (lastPos.x + dx) + 'px,' + lastPos.y + 'px)';
+        m.style.transform = 'translate(' + (lastPos.x + TILE_W + 8) + 'px,' + lastPos.y + 'px)';
         m.setAttribute('role', 'button');
         m.setAttribute('tabindex', '0');
         m.setAttribute('aria-label', 'Jogar na extremidade direita');
-        m.addEventListener('click', function () { if (self.onSideClick) self.onSideClick('right'); });
+        m.addEventListener('click', function () {
+          if (self.onSideClick) self.onSideClick('right');
+        });
         m.addEventListener('keydown', function (ev) {
           if (ev.key === 'Enter' || ev.key === ' ') {
             ev.preventDefault();
@@ -478,14 +519,18 @@
 
       const thead = document.createElement('thead');
       const trh = document.createElement('tr');
+
       const thName = document.createElement('th');
       thName.textContent = 'JOGADOR';
+
       const thPts = document.createElement('th');
       thPts.textContent = 'PONTOS';
       thPts.className = 'col-pts';
+
       const thTiles = document.createElement('th');
       thTiles.textContent = 'PEÇAS';
       thTiles.className = 'col-tiles';
+
       trh.appendChild(thName);
       trh.appendChild(thPts);
       trh.appendChild(thTiles);
@@ -508,7 +553,7 @@
         Object.keys(teamMap).forEach(function (teamKey) {
           const team = parseInt(teamKey, 10);
           const info = teamMap[teamKey];
-          const isMine = (s.players[humanIndex].team === team);
+          const isMine = (s.players[humanIndex] && s.players[humanIndex].team === team);
 
           const tr = document.createElement('tr');
           if (isMine) tr.classList.add('me');

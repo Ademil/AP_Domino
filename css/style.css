@@ -329,7 +329,7 @@ body.contrast-high .board-viewport::after {
   user-select: none;
 }
 .tile-h { width: 64px; height: 32px; flex-direction: row; }
-.tile-v { width: 46px; height: 92px; flex-direction: column; }
+.tile-v { width: 32px; height: 64px; flex-direction: column; }
 
 .tile-half {
   flex: 1; display: flex; align-items: center; justify-content: center;
@@ -348,7 +348,7 @@ body.contrast-high .board-viewport::after {
 .pip-cell { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
 .pip { background: var(--tile-pip); border-radius: 50%; display: block; }
 .tile-h .pip { width: 6px; height: 6px; }
-.tile-v .pip { width: 8px; height: 8px; }
+.tile-v .pip { width: 6px; height: 6px; }
 
 /* Peças VERTICAIS na mesa (carretas e turnos) ficam por cima */
 .board-inner .tile-v {
@@ -495,16 +495,15 @@ body.theme-light .hand-wrap { background: linear-gradient(180deg,#dbe7f4,#c3d6ea
 @media (max-width: 380px) {
   .brand-title { font-size: 32px; letter-spacing: 3px; }
   .tile-h { width: 54px; height: 27px; }
-  .tile-v { width: 42px; height: 84px; }
+  .tile-v { width: 27px; height: 54px; }
   .tile-h .pip { width: 5px; height: 5px; }
-  .tile-v .pip { width: 7px; height: 7px; }
+  .tile-v .pip { width: 5px; height: 5px; }
   .score-table tbody td { font-size: 11.5px; padding: 4px 6px; }
   .score-table .sc-score { font-size: 13px; }
 }
 
 @media (min-height: 780px) {
-  .tile-v { width: 52px; height: 104px; }
-  .hand { min-height: 128px; }
+    .hand { min-height: 128px; }
 }
 
 @media (orientation: landscape) and (max-height: 520px) {
@@ -514,8 +513,8 @@ body.theme-light .hand-wrap { background: linear-gradient(180deg,#dbe7f4,#c3d6ea
   .score-table tbody td { padding: 3px 6px; font-size: 11px; }
   .score-table .sc-score { font-size: 13px; }
   .hand { min-height: 78px; padding: 8px 4px 4px; }
-  .tile-v { width: 34px; height: 68px; }
-  .tile-v .pip { width: 6px; height: 6px; }
+  .tile-v { width: 27px; height: 54px; }
+  .tile-v .pip { width: 5px; height: 5px; }
   .hand-wrap { padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); }
   .action-bar { min-height: 48px; padding: 5px 8px; }
   .action-bar .btn { padding: 8px 12px; min-height: 36px; font-size: 11px; }
