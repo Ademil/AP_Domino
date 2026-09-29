@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="description" content="AP DOMINÓ — Jogo de dominó desenvolvido por APavan Engenharia e Consultoria">
+<meta name="theme-color" content="#0b2545">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AP Dominó">
+<title>AP DOMINÓ</title>
+<link rel="icon" type="image/svg+xml" href="assets/icons/icon.svg">
+<link rel="apple-touch-icon" href="assets/icons/icon.svg">
+<link rel="stylesheet" href="css/style.css">
+
+<script>
+  if (location.protocol === 'http:' || location.protocol === 'https:') {
+    var mf = document.createElement('link');
+    mf.rel = 'manifest';
+    mf.href = 'manifest.json';
+    document.head.appendChild(mf);
+  }
+</script>
+</head>
+<body class="theme-dark">
+
+<div id="app">
+
+  <!-- ============ MENU PRINCIPAL ============ -->
+  <section id="screen-menu" class="screen active">
+    <div class="menu-wrap">
+      <header class="brand">
+        <div class="brand-logo">
+          <div id="brandLogoFallback" class="brand-logo-fallback">APavan</div>
+        </div>
+        <h1 class="brand-title">AP DOMINÓ</h1>
+        <p class="brand-sub">Desenvolvido por APavan Engenharia e Consultoria</p>
+      </header>
+
+      <nav class="menu-buttons">
+        <button class="btn btn-primary" data-action="continue-match" id="btnContinue" hidden>⏵ CONTINUAR PARTIDA</button>
+        <button class="btn btn-primary" data-action="new-match">▶ NOVA PARTIDA</button>
+        <button class="btn" data-action="quick-ai">🤖 CONTRA IA</button>
+        <button class="btn" data-action="duo">👥 DUPLAS</button>
+        <button class="btn" data-action="challenges">🎯 DESAFIOS</button>
+        <button class="btn" data-action="stats">📊 ESTATÍSTICAS</button>
+        <button class="btn" data-action="settings">⚙ CONFIGURAÇÕES</button>
+        <button class="btn" data-action="howto">❓ COMO JOGAR</button>
+        <button class="btn btn-install" data-action="install" id="btnInstall" hidden>📲 INSTALAR APLICATIVO</button>
+      </nav>
+
+      <footer class="menu-footer">v1.0 · APavan Engenharia e Consultoria</footer>
+    </div>
+  </section>
+
+  <!-- ============ CONFIGURAÇÃO DE PARTIDA ============ -->
+  <section id="screen-setup" class="screen">
+    <header class="topbar">
+      <button class="icon-btn" data-action="back-menu" aria-label="Voltar">←</button>
+      <h2>NOVA PARTIDA</h2>
+      <span></span>
+    </header>
+    <div class="screen-body">
+      <div class="form-group">
+        <label>Modo de jogo</label>
+        <div class="chip-row" id="setupMode">
+          <button class="chip" data-value="classic">Clássico</button>
+          <button class="chip" data-value="ai">Contra IA</button>
+          <button class="chip" data-value="duo">Duplas</button>
+          <button class="chip" data-value="training">Treinamento</button>
+        </div>
+      </div>
+
+
+      <div class="form-group">
+        <label>Número de jogadores</label>
+        <div class="chip-row" id="setupPlayers">
+          <button class="chip" data-value="2">2 jogadores</button>
+          <button class="chip" data-value="3">3 jogadores</button>
+          <button class="chip" data-value="4">4 jogadores</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+  <label>Jogadores humanos</label>
+  <div class="chip-row" id="setupHumans">
+    <button class="chip" data-value="1">1 humano (vs IA)</button>
+    <button class="chip" data-value="2">2 humanos</button>
+    <button class="chip" data-value="3">3 humanos</button>
+  </div>
+</div>
+
+<div class="form-group" id="namesGroup" hidden>
+  <label>Nomes dos jogadores</label>
+  <div id="namesInputs" class="names-inputs"></div>
+</div>
+
+      <div class="form-group">
+        <label>Dificuldade da IA</label>
+        <div class="chip-row" id="setupDifficulty">
+          <button class="chip" data-value="easy">Fácil</button>
+          <button class="chip" data-value="medium">Médio</button>
+          <button class="chip" data-value="hard">Difícil</button>
+          <button class="chip" data-value="expert">Expert</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Pontuação final</label>
+        <div class="chip-row" id="setupTarget">
+          <button class="chip" data-value="50">50</button>
+          <button class="chip" data-value="100">100</button>
+          <button class="chip" data-value="150">150</button>
+          <button class="chip" data-value="200">200</button>
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-block" data-action="start-match">INICIAR PARTIDA</button>
+    </div>
+  </section>
+
+  <!-- ============ DESAFIOS ============ -->
+  <section id="screen-challenges" class="screen">
+    <header class="topbar">
+      <button class="icon-btn" data-action="back-menu" aria-label="Voltar">←</button>
+      <h2>DESAFIOS</h2>
+      <span></span>
+    </header>
+    <div class="screen-body" id="challengeList"></div>
+  </section>
+
+  <!-- ============ ESTATÍSTICAS ============ -->
+  <section id="screen-stats" class="screen">
+    <header class="topbar">
+      <button class="icon-btn" data-action="back-menu" aria-label="Voltar">←</button>
+      <h2>MINHAS ESTATÍSTICAS</h2>
+      <button class="icon-btn" data-action="reset-stats" aria-label="Zerar">🗑</button>
+    </header>
+    <div class="screen-body" id="statsBody"></div>
+  </section>
+
+  <!-- ============ CONFIGURAÇÕES ============ -->
+  <section id="screen-settings" class="screen">
+    <header class="topbar">
+      <button class="icon-btn" data-action="back-menu" aria-label="Voltar">←</button>
+      <h2>CONFIGURAÇÕES</h2>
+      <span></span>
+    </header>
+    <div class="screen-body">
+      <div class="form-group">
+        <label>Tema</label>
+        <div class="chip-row" id="setTheme">
+          <button class="chip" data-value="dark">Escuro</button>
+          <button class="chip" data-value="light">Claro</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Idioma</label>
+        <div class="chip-row" id="setLang">
+          <button class="chip" data-value="pt">Português</button>
+          <button class="chip" data-value="en">English</button>
+          <button class="chip" data-value="es">Español</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Efeitos sonoros</label>
+        <div class="chip-row" id="setSound">
+          <button class="chip" data-value="on">🔊 Ligado</button>
+          <button class="chip" data-value="off">🔇 Silenciado</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Vibração</label>
+        <div class="chip-row" id="setVibration">
+          <button class="chip" data-value="on">Ligada</button>
+          <button class="chip" data-value="off">Desligada</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Velocidade das animações</label>
+        <div class="chip-row" id="setSpeed">
+          <button class="chip" data-value="fast">Rápida</button>
+          <button class="chip" data-value="normal">Normal</button>
+          <button class="chip" data-value="slow">Lenta</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Tamanho das peças</label>
+        <div class="chip-row" id="setTileSize">
+          <button class="chip" data-value="small">Pequena</button>
+          <button class="chip" data-value="normal">Normal</button>
+          <button class="chip" data-value="large">Grande</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Alto contraste</label>
+        <div class="chip-row" id="setContrast">
+          <button class="chip" data-value="off">Desligado</button>
+          <button class="chip" data-value="on">Ligado</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Tamanho da fonte</label>
+        <div class="chip-row" id="setFontScale">
+          <button class="chip" data-value="0.9">Pequena</button>
+          <button class="chip" data-value="1">Normal</button>
+          <button class="chip" data-value="1.15">Grande</button>
+          <button class="chip" data-value="1.3">Enorme</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ COMO JOGAR ============ -->
+  <section id="screen-howto" class="screen">
+    <header class="topbar">
+      <button class="icon-btn" data-action="back-menu" aria-label="Voltar">←</button>
+      <h2>COMO JOGAR</h2>
+      <span></span>
+    </header>
+    <div class="screen-body howto">
+      <h3>Objetivo</h3>
+      <p>Ser o primeiro a ficar sem peças na mão. Ao bater, você soma os pontos das peças que sobraram na mão dos adversários.</p>
+      <h3>O conjunto</h3>
+      <p>São 28 peças, de <b>0-0</b> até <b>6-6</b>, sem peças repetidas.</p>
+      <h3>Como jogar</h3>
+      <ol>
+        <li>Toque em uma peça da sua mão.</li>
+        <li>O jogo destaca em <span class="hl-green">verde</span> as extremidades onde ela pode ser encaixada.</li>
+        <li>Toque na extremidade desejada para colocá-la na mesa.</li>
+      </ol>
+      <h3>Compra</h3>
+      <p>Se você não tiver jogada válida, use <b>COMPRAR PEÇA</b>. Se o monte esvaziar, use <b>PASSAR</b>.</p>
+      <h3>Jogo fechado</h3>
+      <p>Quando ninguém mais consegue jogar e o monte está vazio, a rodada fecha. Vence quem tiver menos pontos na mão.</p>
+      <h3>Pontuação</h3>
+      <p>Ao bater, o vencedor soma os pontos de todas as peças restantes dos adversários. A partida vai até a pontuação-alvo configurada.</p>
+      <h3>Duplas</h3>
+      <p>Em 4 jogadores, a dupla é formada por jogadores alternados: <b>VOCÊ + IA 2</b> contra <b>IA 1 + IA 3</b>.</p>
+      <h3>2 Humanos no mesmo aparelho</h3>
+      <p>No modo <b>2 humanos</b>, ao final de cada turno o jogo mostra a tela <b>PASSE O APARELHO</b> para que cada jogador veja apenas a sua mão.</p>
+    </div>
+  </section>
+
+  <!-- ============ JOGO ============ -->
+  <section id="screen-game" class="screen">
+
+    <div class="hud">
+      <div class="hud-left">
+        <button class="icon-btn" data-action="pause" aria-label="Pausar">⏸</button>
+        <div class="hud-title">AP DOMINÓ</div>
+      </div>
+      <div class="hud-center">
+        <div class="hud-round" id="hudRound">RODADA 01</div>
+        <div class="hud-turn" id="hudTurn">SUA VEZ</div>
+      </div>
+      <div class="hud-right">
+        <button class="icon-btn" id="btnSound" data-action="toggle-sound" aria-label="Som">🔊</button>
+        <button class="icon-btn" data-action="history" aria-label="Histórico">📜</button>
+      </div>
+    </div>
+
+    <div class="scoreboard" id="scoreboard"></div>
+
+    <div class="table-wrap">
+      <div class="board-viewport" id="boardViewport">
+        <div class="board-inner" id="boardInner"></div>
+      </div>
+      <div class="boneyard-badge" id="boneyardBadge">
+        <span class="bone-icon">🁫</span>
+        <span>MONTE: <b id="boneyardCount">0</b></span>
+      </div>
+    </div>
+
+    <div class="action-bar" id="actionBar">
+      <button class="btn btn-warn" data-action="draw" id="btnDraw" disabled>COMPRAR PEÇA</button>
+      <button class="btn btn-ghost" data-action="pass" id="btnPass" disabled>PASSAR</button>
+      <button class="btn btn-ghost" data-action="undo" id="btnUndo" hidden>↶ DESFAZER</button>
+      <div class="message" id="gameMessage"></div>
+    </div>
+
+    <div class="hand-wrap">
+      <div class="hand" id="playerHand"></div>
+    </div>
+
+    <div class="history-panel" id="historyPanel" hidden>
+      <div class="history-head">
+        <h3>HISTÓRICO DA RODADA</h3>
+        <button class="icon-btn" data-action="history">✕</button>
+      </div>
+      <ol id="historyList"></ol>
+    </div>
+  </section>
+
+</div>
+
+<!-- ============ OVERLAY: PAUSA ============ -->
+<div class="overlay" id="overlayPause" hidden>
+  <div class="modal">
+    <h2>⏸ PAUSADO</h2>
+    <div class="modal-actions">
+      <button class="btn btn-primary" data-action="resume">Continuar</button>
+      <button class="btn" data-action="restart">Reiniciar partida</button>
+      <button class="btn" data-action="open-settings-ingame">Configurações</button>
+      <button class="btn" data-action="howto-ingame">Como jogar</button>
+      <button class="btn btn-danger" data-action="quit">Sair</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ OVERLAY: PASSE O APARELHO (2 humanos) ============ -->
+<div class="overlay" id="overlayPassDevice" hidden>
+  <div class="modal modal-pass">
+    <div class="pass-device-icon">🔄</div>
+    <h2 id="passDeviceTitle">PASSE O APARELHO</h2>
+    <p id="passDeviceText">É a vez de <b>JOGADOR 2</b>.</p>
+    <p class="pass-device-hint">Entregue o aparelho e toque em <b>PRONTO</b> para ver sua mão.</p>
+    <button class="btn btn-primary btn-block" data-action="pass-device-ready" id="passDeviceReady">ESTOU PRONTO</button>
+  </div>
+</div>
+
+<!-- ============ OVERLAY: FIM DE RODADA ============ -->
+<div class="overlay" id="overlayRound" hidden>
+  <div class="modal modal-wide">
+    <h2 id="roundTitle">FIM DA RODADA</h2>
+    <div id="roundBody"></div>
+    <div class="modal-actions" id="roundActions"></div>
+  </div>
+</div>
+
+<!-- ============ OVERLAY: FIM DE PARTIDA ============ -->
+<div class="overlay" id="overlayMatch" hidden>
+  <div class="modal modal-wide">
+    <h2 id="matchTitle">FIM DA PARTIDA</h2>
+    <div id="matchBody"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" data-action="play-again">JOGAR NOVAMENTE</button>
+      <button class="btn" data-action="back-menu">VOLTAR AO MENU</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ OVERLAY: CONFIRMAÇÃO ============ -->
+<div class="overlay" id="overlayConfirm" hidden>
+  <div class="modal">
+    <h2 id="confirmTitle">Confirmar</h2>
+    <p id="confirmText"></p>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="confirmYes">Sim</button>
+      <button class="btn" id="confirmNo">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ TOAST ============ -->
+<div class="toast" id="toast" hidden></div>
+
+<script src="js/domino-set.js"></script>
+<script src="js/player.js"></script>
+<script src="js/ai-player.js"></script>
+<script src="js/game-engine.js"></script>
+<script src="js/renderer.js"></script>
+<script src="js/audio-manager.js"></script>
+<script src="js/storage-manager.js"></script>
+<script src="js/pwa-manager.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+{
+  "name": "AP Dominó",
+  "short_name": "AP Dominó",
+  "description": "Jogo de dominó tradicional desenvolvido por APavan Engenharia e Consultoria.",
+  "id": "/ap-domino/",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "theme_color": "#0b2545",
+  "background_color": "#0b2545",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    {
+      "src": "assets/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
